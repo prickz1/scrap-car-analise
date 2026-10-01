@@ -1,0 +1,247 @@
+============================================================
+SCRAP CARROS — ANÁLISE EXPLORATÓRIA DE DADOS
+Documentação do Projeto (TCC)
+============================================================
+
+------------------------------------------------------------
+1. VISÃO GERAL DO PROJETO
+------------------------------------------------------------
+
+Este projeto realiza uma Análise Exploratória de Dados (AED) sobre
+anúncios de veículos coletados do site OLX Brasil por meio de web
+scraping automatizado.
+
+O objetivo é entender a distribuição de preços, identificar padrões,
+detectar inconsistências nos dados coletados e gerar insumos para
+a limpeza e análise estatística do dataset.
+
+O relatório é gerado como um único arquivo HTML com gráficos
+interativos (Plotly), sem necessidade de servidor ou instalação
+adicional para visualização.
+
+------------------------------------------------------------
+2. FONTE DOS DADOS
+------------------------------------------------------------
+
+- Plataforma: OLX Brasil (olx.com.br)
+- Método de coleta: Web scraping com Playwright (navegação headless)
+  e curl_cffi com impersonação de Chrome para páginas de detalhe
+- Armazenamento: PostgreSQL 16 (via Docker)
+- Tabela principal: cars
+- Total de registros analisados: ~79.000 anúncios
+
+Campos coletados:
+  - preco         : Preço anunciado em R$
+  - ano           : Ano de fabricação do veículo
+  - quilometragem : Quilometragem registrada no anúncio
+  - modelo        : Modelo do veículo
+  - marca         : Marca do veículo
+  - combustivel   : Tipo de combustível (Flex, Gasolina, Diesel, etc.)
+  - cambio        : Tipo de câmbio (Manual, Automático, etc.)
+  - cor           : Cor do veículo
+  - tipo_veiculo  : Categoria (Carro, SUV, Picape, etc.)
+  - direcao       : Tipo de direção (Hidráulica, Elétrica, etc.)
+
+------------------------------------------------------------
+3. ESTRUTURA DO CÓDIGO
+------------------------------------------------------------
+
+database.py       — Conecta ao PostgreSQL e carrega os dados brutos
+descritiva.py     — Calcula as estatísticas descritivas (df.describe)
+graficos.py       — Gera todos os gráficos com Plotly
+builder.py        — Monta os cards HTML e o template da página
+gerar_relatorio.py — Ponto de entrada: gera e abre o relatório HTML
+
+------------------------------------------------------------
+4. ANÁLISES REALIZADAS
+------------------------------------------------------------
+
+4.1 ESTATÍSTICAS DESCRITIVAS (df.describe)
+-------------------------------------------
+Resumo estatístico das variáveis numéricas: preco, ano e quilometragem.
+
+Métricas exibidas:
+  - Registros   : Total de valores não nulos no campo
+  - Média       : Valor médio
+  - Desvio Padrão: O quanto os valores variam em torno da média.
+                   Desvio alto = dados muito espalhados
+  - Mínimo      : Menor valor encontrado no dataset
+  - Percentil 25%: 25% dos registros estão abaixo desse valor
+  - Mediana (50%): Metade dos registros está acima e metade abaixo
+  - Percentil 75%: 75% dos registros estão abaixo desse valor
+  - Máximo      : Maior valor encontrado no dataset
+
+Por que usar mediana e não média?
+A média é sensível a valores extremos (outliers). Um anúncio com
+R$ 5.000.000 distorce a média para cima. A mediana representa
+melhor o "preço típico" de um carro no dataset.
+
+Nenhum filtro foi aplicado nos dados — os números refletem
+os dados brutos conforme coletados do OLX.
+
+4.2 BOXPLOT — DADOS BRUTOS
+----------------------------
+Mostra a distribuição completa de preços sem nenhum filtro.
+
+Como ler um boxplot:
+  - Caixa central  : Contém 50% dos registros (entre Q1 e Q3)
+  - Linha vermelha : Mediana (valor do meio)
+  - Bigodes        : Estendem-se até 1,5 × IQR além da caixa
+  - Pontos isolados: Outliers estatísticos (valores fora dos bigodes)
+
+O que este gráfico revela:
+A caixa fica comprimida à esquerda porque poucos anúncios com preços
+absurdos (até R$ 7 milhões) esticam o eixo, tornando a distribuição
+da maioria dos carros visualmente invisível.
+
+Isso evidencia a presença de outliers extremos no dataset — anúncios
+com preços claramente incorretos ou fraudulentos.
+
+4.3 BOXPLOT — SEM OUTLIERS EXTREMOS
+--------------------------------------
+Mesmo gráfico após remover registros acima do limite IQR.
+
+Como o limite é calculado:
+  IQR = Q3 - Q1   (Intervalo Interquartil)
+  Limite superior = Q3 + 1,5 × IQR
+
+Registros acima desse limite são considerados outliers estatísticos
+e removidos apenas para fins de visualização neste gráfico.
+Os dados brutos originais não são alterados.
+
+O que este gráfico revela:
+Com os outliers removidos, a distribuição real dos preços torna-se
+visível: a maioria dos carros está entre R$ 45.000 e R$ 104.000,
+com mediana em torno de R$ 73.000.
+
+A comparação entre os dois boxplots justifica a necessidade de
+limpeza dos dados antes de análises estatísticas mais aprofundadas.
+
+4.4 BOXPLOT — PREÇOS POR MARCA (TOP 15)
+-----------------------------------------
+Um boxplot para cada uma das 15 marcas mais frequentes no dataset,
+ordenadas da maior para a menor mediana de preço.
+
+O que este gráfico revela:
+  - Marcas com caixa alta: grande variação de preços (ex: BMW, Audi)
+  - Marcas com caixa estreita: preços mais padronizados (ex: Fiat, VW)
+  - Pontos isolados por marca: anúncios atípicos para aquela marca
+    (possíveis erros de digitação ou veículos especiais)
+
+Ao passar o mouse sobre um ponto (outlier), são exibidos:
+marca, preço, modelo e ano do veículo — facilitando a identificação
+manual de dados incorretos.
+
+4.5 MATRIZ DE CORRELAÇÃO (HEATMAP)
+------------------------------------
+Mostra a correlação entre todas as variáveis do dataset.
+
+Como interpretar:
+  - Valor +1 (vermelho escuro) : As duas variáveis sobem juntas
+  - Valor -1 (azul escuro)     : Quando uma sobe, a outra desce
+  - Valor 0  (branco/neutro)   : Sem relação entre as variáveis
+  - Diagonal principal         : Sempre 1,00 (variável × ela mesma)
+
+Variáveis numéricas: preco, ano, quilometragem
+Variáveis categóricas: marca, combustivel, cambio, cor,
+                        tipo_veiculo, direcao
+
+Atenção — LabelEncoder para variáveis categóricas:
+As variáveis categóricas foram convertidas para números usando
+LabelEncoder (ex: Fiat=0, Ford=1, GM=2). Essa numeração é
+ARBITRÁRIA, pois o algoritmo ordena os valores alfabeticamente.
+Por isso, as correlações das variáveis categóricas devem ser
+interpretadas com cautela — elas indicam tendência, não relação
+linear real.
+
+Correlações esperadas:
+  - Ano × Preço: positiva (carros mais novos tendem a custar mais)
+  - Quilometragem × Preço: negativa (mais km = menor preço)
+
+Se as correlações aparecem fracas ou próximas de zero, é um indício
+de que os dados brutos contêm outliers que precisam ser tratados
+antes da análise.
+
+------------------------------------------------------------
+5. PROBLEMAS DE QUALIDADE DOS DADOS IDENTIFICADOS
+------------------------------------------------------------
+
+5.1 PREÇO
+  - Valor mínimo: R$ 0 (anúncios sem preço cadastrado)
+  - Valor máximo: R$ 7.000.000+ (claramente incorreto)
+  - ~3.373 registros acima do limite IQR (R$ ~202.000)
+  - Causa provável: erros de digitação, anúncios de peças,
+    ou anúncios fraudulentos
+
+5.2 QUILOMETRAGEM
+  - Valor mínimo: 0 (carro zero ou campo não preenchido)
+  - Valor máximo: 999.999.999 (claramente incorreto)
+  - ~1.324 registros com quilometragem = 0
+  - ~799 registros com quilometragem > 300.000 km
+  - Causa provável: campo não preenchido ou digitado errado
+
+5.3 MARCA
+  - Registros com marca = 'ERRO': falhas no processo de enriquecimento
+    (página do anúncio não retornou os dados esperados)
+  - Esses registros devem ser excluídos ou investigados
+
+------------------------------------------------------------
+5.4 EXCLUSÕES MANUAIS — SEGUNDA MATRIZ DE CORRELAÇÃO
+------------------------------------------------------------
+
+Os seguintes IDs foram excluídos manualmente da segunda matriz de
+correlação (Quilometragem sem outliers) por serem outliers confirmados
+de preço da Amarok (VOLKSWAGEN), identificados visualmente nos
+boxplots por modelo:
+
+  IDs: 79641, 159336, 794481, 79645, 76207, 76183, 79626, 79521,
+       79214, 79623, 79627, 79497, 79646, 79628, 79630, 71351,
+       64802, 79624, 79629, 79351, 79631, 79659
+
+Critério: anúncios da Amarok cujo preço estava acima do limite
+IQR calculado exclusivamente para esse modelo (Q3 + 1,5 × IQR
+da Amarok), identificados pelo ID via hover nos gráficos.
+
+Esses registros NÃO foram removidos do banco de dados nem da
+primeira matriz — a exclusão é aplicada apenas na segunda heatmap
+para demonstrar o impacto desses outliers na correlação.
+
+------------------------------------------------------------
+6. PRÓXIMOS PASSOS — LIMPEZA DOS DADOS
+------------------------------------------------------------
+
+Abordagem recomendada (combinar critério de domínio + IQR):
+
+Etapa 1 — Remover erros óbvios (critério de domínio):
+  - marca = 'ERRO'
+  - preco < R$ 3.000 ou preco > R$ 500.000
+  - quilometragem = 0 ou quilometragem > 400.000
+  - ano < 1980 ou ano > 2025
+
+Etapa 2 — Aplicar IQR nas variáveis numéricas restantes:
+  - Calcular Q1, Q3 e IQR para preco e quilometragem
+  - Remover registros acima de Q3 + 1,5 × IQR
+
+Etapa 3 — Após a limpeza:
+  - Regenerar o heatmap com os dados tratados
+  - Comparar a matriz de correlação antes e depois da limpeza
+  - Espera-se que a correlação quilometragem × preço fique mais
+    próxima de -1 (mais quilômetros = menor preço)
+
+------------------------------------------------------------
+7. TECNOLOGIAS UTILIZADAS
+------------------------------------------------------------
+
+Backend / Scraping (projeto scrap-car-back):
+  - Python 3.14
+  - FastAPI + SQLAlchemy (async)
+  - PostgreSQL 16 (Docker)
+  - Playwright (scraping das páginas de listagem OLX)
+  - curl_cffi com impersonação Chrome (scraping das páginas de detalhe)
+
+Análise de Dados (este projeto — scrap-car-analise):
+  - Python 3.14
+  - Pandas (manipulação e estatísticas)
+  - Plotly (gráficos interativos)
+  - Scikit-learn / LabelEncoder (encoding de variáveis categóricas)
+  - SQLAlchemy (conexão com o banco de dados)

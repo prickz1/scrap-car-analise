@@ -6,7 +6,7 @@ _engine = create_engine("postgresql://paulo:paulo2131@localhost:7777/scrap_carro
 
 def carregar_dados() -> pd.DataFrame:
     return pd.read_sql("""
-        SELECT preco, ano, quilometragem,
+        SELECT id, preco, ano, quilometragem, modelo,
                marca, combustivel, cambio,
                cor, tipo_veiculo, direcao
         FROM cars
