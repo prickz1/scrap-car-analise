@@ -175,18 +175,16 @@ _LABELS_PT = ["Preço", "Ano", "Quilometragem", "Marca", "Combustível",
               "Câmbio", "Cor", "Tipo Veículo", "Direção"]
 
 
-def heatmap_correlacao_misto(df: pd.DataFrame) -> go.Figure:
+def heatmap_correlacao_misto(df: pd.DataFrame, ids_ignorar: list[int] | None = None) -> go.Figure:
     df_f = df.copy()
+
+    if ids_ignorar:
+        df_f = df_f[~df_f["id"].isin(ids_ignorar)]
 
     # Filtro IQR — quilometragem
     s_km = df_f["quilometragem"].dropna()
     lim_km = s_km.quantile(0.75) + 1.5 * (s_km.quantile(0.75) - s_km.quantile(0.25))
     df_f = df_f[df_f["quilometragem"].isna() | (df_f["quilometragem"] <= lim_km)]
-
-    # Filtro IQR — preço (para corrigir eta de preço × direção)
-    s_pr = df_f["preco"].dropna()
-    lim_pr = s_pr.quantile(0.75) + 1.5 * (s_pr.quantile(0.75) - s_pr.quantile(0.25))
-    df_f = df_f[df_f["preco"] <= lim_pr]
 
     colunas = _NUMERICAS + _CATEGORICAS
     n = len(colunas)

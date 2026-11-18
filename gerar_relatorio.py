@@ -56,7 +56,7 @@ cards = (
     # Matrizes de correlação
     + card_heatmap("Matriz de Correlação — Dados Brutos", heatmap_correlacao(df), div_id="heatmap-bruto")
     + card_heatmap("Matriz de Correlação — Quilometragem sem outliers", heatmap_correlacao_filtrado(df, IDS_IGNORAR_MATRIZ2), div_id="heatmap-filtrado")
-    + card_heatmap("Matriz de Correlação — Método Misto", heatmap_correlacao_misto(df), div_id="heatmap-misto")
+    + card_heatmap("Matriz de Correlação — Método Misto", heatmap_correlacao_misto(df, IDS_IGNORAR_MATRIZ2), div_id="heatmap-misto")
 )
 
 output = Path(__file__).parent / "relatorio.html"
